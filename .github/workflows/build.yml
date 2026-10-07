@@ -1,0 +1,28 @@
+name: Build APK
+on: [push, workflow_dispatch]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          Z=$(ls *.zip | sort | tail -n1)
+          echo "Using $Z"
+          mkdir -p project
+          unzip -q -o "$Z" -d project
+          S=$(find project -name 'settings.gradle*' | head -n1)
+          if [ -z "$S" ]; then echo "No Android project found. Files:"; find project | head -40; exit 1; fi
+          echo "APPDIR=$(dirname "$S")" >> $GITHUB_ENV
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.9
+      - run: gradle assembleDebug --no-daemon
+        working-directory: ${{ env.APPDIR }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pinboard-apk
+          path: '**/app-debug.apk'
